@@ -1,0 +1,84 @@
+{
+  "name": "IoT Data Pipeline Demo",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Stage 1: IoT Sensor Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [100, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  { json: { sensor_id: 'T-101', temp_c: 45.2 } },\n  { json: { sensor_id: 'T-102', temp_c: null } },\n  { json: { sensor_id: 'T-103', temp_c: 999.9 } }\n];"
+      },
+      "name": "Stage 2: Ingestion API",
+      "type": "n8n-nodes-base.code",
+      "position": [300, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "for (let item of $input.all()) {\n  if (item.json.temp_c === null) {\n    item.json.temp_c = 45.0;\n  }\n}\nreturn $input.all();"
+      },
+      "name": "Stage 3: Data Processing",
+      "type": "n8n-nodes-base.code",
+      "position": [500, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.temp_c}}",
+              "operation": "larger",
+              "value2": 150
+            }
+          ]
+        }
+      },
+      "name": "Stage 4: Validation Check",
+      "type": "n8n-nodes-base.if",
+      "position": [700, 300],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Stage 1: IoT Sensor Trigger": {
+      "main": [
+        [
+          {
+            "node": "Stage 2: Ingestion API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 2: Ingestion API": {
+      "main": [
+        [
+          {
+            "node": "Stage 3: Data Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 3: Data Processing": {
+      "main": [
+        [
+          {
+            "node": "Stage 4: Validation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

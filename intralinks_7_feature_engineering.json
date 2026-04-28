@@ -1,0 +1,94 @@
+{
+  "name": "Feature Engineering Pipeline Demo",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [0, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// RAW MESSY DATA\nconst users = [\n  { user_id: 101, age: 25, city: 'Pune', annual_income: 50000 },\n  { user_id: 102, age: null, city: 'Mumbai', annual_income: 60000 },\n  { user_id: 103, age: 32, city: 'Pune', annual_income: 120000 },\n  { user_id: 104, age: 150, city: 'Delhi', annual_income: 9999999 }\n];\n\nconst transactions = [\n  { user_id: 101, amount: 1200 }, { user_id: 101, amount: 800 },\n  { user_id: 102, amount: 1500 },\n  { user_id: 103, amount: 300 }, { user_id: 103, amount: 450 }, { user_id: 103, amount: 600 }\n];\n\nreturn [{ json: { users, transactions } }];"
+      },
+      "name": "Raw Data Injection",
+      "type": "n8n-nodes-base.code",
+      "position": [200, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "let data = $input.first().json;\nlet users = data.users || [];\n\n// CLEANING\nusers.forEach(u => {\n  if (u.age === null || u.age === undefined) u.age = 28;\n  if (u.age > 99) u.age = 99;\n});\n\n// Remove extreme income outliers\nusers = users.filter(u => u.annual_income < 1000000);\n\ndata.users = users;\nreturn [{ json: data }];"
+      },
+      "name": "Step 1: Clean Data",
+      "type": "n8n-nodes-base.code",
+      "position": [400, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "let data = $input.first().json;\nlet users = data.users || [];\n\n// TRANSFORM & ENCODE\nusers.forEach(u => {\n  u.scaled_income = u.annual_income / 100000;\n\n  u.city_Pune = u.city === 'Pune' ? 1 : 0;\n  u.city_Mumbai = u.city === 'Mumbai' ? 1 : 0;\n  u.city_Delhi = u.city === 'Delhi' ? 1 : 0;\n\n  delete u.city;\n  delete u.annual_income;\n});\n\nreturn [{ json: data }];"
+      },
+      "name": "Step 2 & 3: Transform & Encode",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "let data = $input.first().json;\nlet users = data.users || [];\nlet txs = data.transactions || [];\n\n// AGGREGATE & SELECT\nusers.forEach(u => {\n  let userTxs = txs.filter(t => t.user_id === u.user_id);\n  let total = userTxs.reduce((sum, t) => sum + t.amount, 0);\n  u.avg_spend = userTxs.length ? total / userTxs.length : 0;\n\n  delete u.user_id;\n});\n\nreturn users.map(u => ({ json: u }));"
+      },
+      "name": "Step 4 & 5: Aggregate & Select",
+      "type": "n8n-nodes-base.code",
+      "position": [800, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {},
+      "name": "Step 6: Feature Store API (Mock)",
+      "type": "n8n-nodes-base.set",
+      "position": [1000, 300],
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          { "node": "Raw Data Injection", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Raw Data Injection": {
+      "main": [
+        [
+          { "node": "Step 1: Clean Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Step 1: Clean Data": {
+      "main": [
+        [
+          { "node": "Step 2 & 3: Transform & Encode", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Step 2 & 3: Transform & Encode": {
+      "main": [
+        [
+          { "node": "Step 4 & 5: Aggregate & Select", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Step 4 & 5: Aggregate & Select": {
+      "main": [
+        [
+          { "node": "Step 6: Feature Store API (Mock)", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}
